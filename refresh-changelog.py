@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+import html
 import mistune
 import re
+
+
+def get_src_path():
+    return str(Path(__file__).resolve().parent)
 
 
 def make_changelog_dict(title):
@@ -15,8 +20,12 @@ def make_changelog_dict(title):
     }
 
 
-def get_src_path():
-    return str(Path(__file__).resolve().parent)
+def make_release_tag(changes_html, version, date):
+    return "<release version=\"" + html.escape(version) \
+            + "\" date=\"" + html.escape(date) \
+            + "\">\n" \
+            + changes_html \
+            + "</release>\n"
 
 
 markdown_parser = mistune.Markdown(escape=False)
@@ -35,8 +44,7 @@ appdata_releases = ""
 
 for entry in changelog_entries:
     changes_html = markdown_parser(entry["changes"])
-    appdata_releases += "<release version=\"" + entry["version"] + "\" date=\"" + entry["date"] + "\">\n"
-    appdata_releases += changes_html
-    appdata_releases += "</release>\n"
+    appdata_releases += \
+        make_release_tag(changes_html, entry["version"], entry["date"])
 
 print(appdata_releases)
