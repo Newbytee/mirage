@@ -14,18 +14,15 @@ def make_changelog_dict(title):
     title_parts = title.split(" ")
 
     return {
-        "changes": "",
         "date": title_parts[2][1:-2],
         "version": title_parts[1]
     }
 
 
-def make_release_tag(changes_html, version, date):
-    return "<release version=\"" + html.escape(version) \
+def make_release_tag(version, date):
+    return "    <release version=\"" + html.escape(version) \
             + "\" date=\"" + html.escape(date) \
-            + "\">\n" \
-            + changes_html \
-            + "</release>\n"
+            + "\" />\n" \
 
 
 markdown_parser = mistune.Markdown(escape=False)
@@ -37,14 +34,35 @@ for line in changelog_lines:
     if changelog_title_pattern.match(line):
         changelog_entry = make_changelog_dict(line)
         changelog_entries.append(changelog_entry)
-    elif len(changelog_entries) != 0:
-        changelog_entries[-1]["changes"] += line
 
 appdata_releases = ""
 
 for entry in changelog_entries:
-    changes_html = markdown_parser(entry["changes"])
-    appdata_releases += \
-        make_release_tag(changes_html, entry["version"], entry["date"])
+    appdata_releases += make_release_tag(entry["version"], entry["date"])
 
-print(appdata_releases)
+appdata_path = get_src_path() + "/packaging/mirage.appdata.xml"
+appdata_lines = open(appdata_path, "r").readlines()
+releases_open_pattern = re.compile(r"  <releases>")
+releases_close_pattern = re.compile(r"  </releases>")
+
+opening_tag_found = False
+releases_open_line = 0
+releases_close_line = 0
+
+for line in appdata_lines:
+    if not opening_tag_found:
+        releases_open_line += 1
+    if releases_open_pattern.match(line):
+        opening_tag_found = True
+    if releases_close_pattern.match(line):
+        break
+    releases_close_line += 1
+
+# We need to remove the old release entries since we're inserting
+# new ones unconditionally
+del appdata_lines[releases_open_line:releases_close_line]
+appdata_lines.insert(releases_open_line, appdata_releases)
+
+with open(appdata_path, "w") as appdata_file:
+    appdata_lines = "".join(appdata_lines)
+    appdata_file.write(appdata_lines)
